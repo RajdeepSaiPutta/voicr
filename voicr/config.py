@@ -64,7 +64,6 @@ SESSIONS_DIR = DATA_DIR / "sessions"
 AUDIT_DIR = DATA_DIR / "audit"
 ASSETS_DIR = BASE_DIR / "assets" / "audio"
 
-# ensure directories exist
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
