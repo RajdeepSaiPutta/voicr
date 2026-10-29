@@ -23,6 +23,7 @@ MOCK_MODE = not GROQ_API_KEY
 
 # authentication
 AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "true").lower() == "true"
+DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 1

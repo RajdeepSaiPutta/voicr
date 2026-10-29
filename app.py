@@ -7,6 +7,7 @@ run: python app.py
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import re
@@ -21,6 +22,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from voicr.config import (
     MOCK_MODE,
+    DASHBOARD_API_KEY,
     HOST,
     PORT,
     LOG_LEVEL,
@@ -172,6 +174,23 @@ async def serve_dashboard():
 async def health_check():
     # minimal public health response - no sensitive details
     return {"status": "ok"}
+
+
+@app.get("/api/auth-token")
+async def issue_dashboard_token(request: Request):
+    """
+    Give the dashboard a short-lived websocket token. The browser cannot set the
+    sec-websocket-protocol header itself, so it hands the token to WebSocket(url, [token]).
+    In live mode an admin key in the X-Auth-Key header is required;
+    in mock mode tokens are free since nothing is real anyway.
+    """
+    if not MOCK_MODE:
+        admin_key = request.headers.get("x-auth-key", "")
+        if not DASHBOARD_API_KEY or not hmac.compare_digest(admin_key, DASHBOARD_API_KEY):
+            audit.log_auth_event("TOKEN_ISSUE", None, False)
+            return JSONResponse(status_code=401, content={"error": "Authentication required"})
+    token = AuthManager.create_token(f"dashboard-{uuid.uuid4().hex[:8]}", "user")
+    return {"token": token}
 
 
 @app.get("/api/health/details")
@@ -550,7 +569,9 @@ async def process_pipeline(session: SessionState) -> None:
 @app.websocket("/ws/voice")
 async def voice_websocket(websocket: WebSocket):
     """main websocket endpoint for bi-directional voice interaction."""
-    await websocket.accept()
+    # the token arrives as a websocket subprotocol; the browser only completes
+    # the handshake if the server echoes the chosen subprotocol back
+    await websocket.accept(subprotocol=websocket.headers.get("sec-websocket-protocol"))
     session_id = str(uuid.uuid4())
     session = SessionState(session_id, websocket)
     session.client_ip = websocket.client.host if websocket.client else "unknown"
